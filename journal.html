@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trading Journal – Desk Edition</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin:0;
+    font-family: 'Segoe UI', sans-serif;
+    background:#0d1117;
+    color:#e6edf3;
+}
+.container {
+    width:95%;
+    max-width:1400px;
+    margin:30px auto;
+}
+h1 {
+    text-align:center;
+    font-weight:600;
+    letter-spacing:1px;
+}
+.card {
+    background:#161b22;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 20px rgba(0,0,0,0.4);
+    margin-bottom:25px;
+}
+input, select, button {
+    padding:10px;
+    border:none;
+    border-radius:6px;
+    margin:5px;
+    background:#21262d;
+    color:#fff;
+}
+button {
+    background:#238636;
+    cursor:pointer;
+}
+button:hover {
+    opacity:0.9;
+}
+table {
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+th, td {
+    padding:10px;
+    text-align:center;
+    border-bottom:1px solid #30363d;
+}
+.stat-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap:15px;
+}
+.stat-box {
+    background:#21262d;
+    padding:15px;
+    border-radius:8px;
+    text-align:center;
+}
+.green { color:#3fb950; }
+.red { color:#f85149; }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>Trading Journal – Professional Desk</h1>
+
+<div class="card">
+<h3>Add Trade</h3>
+<input id="symbol" placeholder="Symbol (BTCUSDT)">
+<select id="direction">
+<option value="LONG">LONG</option>
+<option value="SHORT">SHORT</option>
+</select>
+<input id="rr" type="number" step="0.01" placeholder="RR Achieved (1.5 / -1 / 0)">
+<select id="session">
+<option>Asia</option>
+<option>London</option>
+<option>NY</option>
+</select>
+<input id="time" type="datetime-local">
+<button onclick="addTrade()">Add Trade</button>
+</div>
+
+<div class="card">
+<h3>Analytics</h3>
+<div class="stat-grid" id="stats"></div>
+</div>
+
+<div class="card">
+<h3>Trade History</h3>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Direction</th>
+<th>RR</th>
+<th>Session</th>
+<th>UTC Time</th>
+</tr>
+</thead>
+<tbody id="tradeTable"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("trades")) || [];
+
+function saveTrades() {
+    localStorage.setItem("trades", JSON.stringify(trades));
+}
+
+function addTrade() {
+    const symbol = document.getElementById("symbol").value;
+    const direction = document.getElementById("direction").value;
+    const rr = parseFloat(document.getElementById("rr").value);
+    const session = document.getElementById("session").value;
+    const timeInput = document.getElementById("time").value;
+
+    if(!symbol || isNaN(rr) || !timeInput) return alert("Fill all fields");
+
+    const utcTime = new Date(timeInput).toISOString();
+
+    trades.push({symbol, direction, rr, session, time: utcTime});
+    saveTrades();
+    render();
+}
+
+function render() {
+    const table = document.getElementById("tradeTable");
+    table.innerHTML = "";
+
+    trades.forEach(t=>{
+        table.innerHTML += `
+        <tr>
+            <td>${t.symbol}</td>
+            <td>${t.direction}</td>
+            <td class="${t.rr>=0?'green':'red'}">${t.rr}</td>
+            <td>${t.session}</td>
+            <td>${t.time}</td>
+        </tr>`;
+    });
+
+    calculateStats();
+}
+
+function calculateStats(){
+    if(trades.length===0) return;
+
+    let total = trades.length;
+    let wins = trades.filter(t=>t.rr>0);
+    let losses = trades.filter(t=>t.rr<0);
+
+    let winRate = (wins.length/total)*100;
+    let avgRR = trades.reduce((a,b)=>a+b.rr,0)/total;
+    let profitFactor = Math.abs(
+        wins.reduce((a,b)=>a+b.rr,0) /
+        (losses.reduce((a,b)=>a+b.rr,0)||1)
+    );
+
+    let expectancy = avgRR;
+
+    let equity=0, peak=0, maxDD=0;
+    trades.forEach(t=>{
+        equity+=t.rr;
+        if(equity>peak) peak=equity;
+        let dd = peak-equity;
+        if(dd>maxDD) maxDD=dd;
+    });
+
+    let streak=0, maxStreak=0;
+    trades.forEach(t=>{
+        if(t.rr<0){
+            streak++;
+            if(streak>maxStreak) maxStreak=streak;
+        } else streak=0;
+    });
+
+    let sessionProfit={Asia:0,London:0,NY:0};
+    trades.forEach(t=>sessionProfit[t.session]+=t.rr);
+
+    let bestSession = Object.keys(sessionProfit).reduce((a,b)=>sessionProfit[a]>sessionProfit[b]?a:b);
+    let worstSession = Object.keys(sessionProfit).reduce((a,b)=>sessionProfit[a]<sessionProfit[b]?a:b);
+
+    let longProfit = trades.filter(t=>t.direction==="LONG").reduce((a,b)=>a+b.rr,0);
+    let shortProfit = trades.filter(t=>t.direction==="SHORT").reduce((a,b)=>a+b.rr,0);
+    let bestDirection = longProfit>shortProfit ? "LONG" : "SHORT";
+
+    let weekend=0, weekday=0;
+    trades.forEach(t=>{
+        let day=new Date(t.time).getUTCDay();
+        if(day===0||day===6) weekend+=t.rr;
+        else weekday+=t.rr;
+    });
+
+    document.getElementById("stats").innerHTML = `
+        <div class="stat-box">Total Trades<br><b>${total}</b></div>
+        <div class="stat-box">Win Rate<br><b>${winRate.toFixed(2)}%</b></div>
+        <div class="stat-box">Avg RR<br><b>${avgRR.toFixed(2)}</b></div>
+        <div class="stat-box">Profit Factor<br><b>${profitFactor.toFixed(2)}</b></div>
+        <div class="stat-box">Expectancy<br><b>${expectancy.toFixed(2)}</b></div>
+        <div class="stat-box">Max Drawdown<br><b>${maxDD.toFixed(2)}</b></div>
+        <div class="stat-box">Longest Losing Streak<br><b>${maxStreak}</b></div>
+        <div class="stat-box">Best Session<br><b>${bestSession}</b></div>
+        <div class="stat-box">Worst Session<br><b>${worstSession}</b></div>
+        <div class="stat-box">Weekend PnL<br><b>${weekend.toFixed(2)}</b></div>
+        <div class="stat-box">Weekday PnL<br><b>${weekday.toFixed(2)}</b></div>
+        <div class="stat-box">Most Profitable Direction<br><b>${bestDirection}</b></div>
+    `;
+}
+
+render();
+</script>
+
+</body>
+</html>
