@@ -122,6 +122,37 @@
         h2 {
             margin-top: 0;
         }
+
+        .section-title {
+            grid-column: 1 / -1;
+            text-align: left;
+            font-weight: 700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #161b22;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .section-original {
+            border-left: 4px solid #3fb950;
+        }
+
+        .section-model {
+            border-left: 4px solid #58a6ff;
+        }
+
+        .stat-box {
+            background: #161b22;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .stat-box b {
+            font-size: 16px;
+        }
     </style>
 </head>
 
@@ -264,6 +295,7 @@
         }
 
         function render() {
+
             const table = document.getElementById("tradeTable");
             table.innerHTML = "";
 
@@ -274,7 +306,9 @@
             let streak = 0;
             let maxStreak = 0;
 
-            let equityData = [0], modelData = [0], labels = [0];
+            let equityData = [0];
+            let modelData = [0];
+            let labels = [0];
 
             trades.forEach((t, i) => {
 
@@ -282,19 +316,18 @@
                 equityData.push(equity);
                 labels.push(i + 1);
 
-                // 1:1 MODEL LOGIC
                 let modelRR = (t.rr < 0) ? -1 : 1;
                 modelEquity += modelRR;
                 modelData.push(modelEquity);
 
-                // drawdown calc (for stats only)
                 if (equity > peak) peak = equity;
                 let dd = peak - equity;
                 if (dd > maxDD) maxDD = dd;
 
-                // losing streak
-                if (t.rr < 0) { streak++; if (streak > maxStreak) maxStreak = streak; }
-                else streak = 0;
+                if (t.rr < 0) {
+                    streak++;
+                    if (streak > maxStreak) maxStreak = streak;
+                } else streak = 0;
 
                 table.innerHTML += `
 <tr>
@@ -310,9 +343,8 @@
 </tr>`;
             });
 
-            // Dynamic color
-            let finalEquity = equityData.length ? equityData[equityData.length - 1] : 0;
-            let finalModelEquity = modelData.length ? modelData[modelData.length - 1] : 0;
+            let finalEquity = equityData[equityData.length - 1];
+            let finalModelEquity = modelData[modelData.length - 1];
 
             equityChart.data.labels = labels;
             equityChart.data.datasets[0].data = equityData;
@@ -335,13 +367,15 @@
             }
 
             let total = trades.length;
+
+            /* =========================
+               ORIGINAL STRATEGY
+            ========================== */
+
             let wins = trades.filter(t => t.rr > 0);
             let losses = trades.filter(t => t.rr < 0);
 
             let winRate = (wins.length / total) * 100;
-            let modelWins = trades.filter(t => t.rr >= 0).length;
-            let modelWinRate = (modelWins / total) * 100;
-
             let avgRR = trades.reduce((a, b) => a + b.rr, 0) / total;
 
             let profitFactor = Math.abs(
@@ -350,9 +384,20 @@
             );
 
             let sessionProfit = {};
+            let weekend = 0, weekday = 0;
+            let longProfit = 0, shortProfit = 0;
+
             trades.forEach(t => {
+
                 if (!sessionProfit[t.session]) sessionProfit[t.session] = 0;
                 sessionProfit[t.session] += t.rr;
+
+                let day = new Date(t.time).getUTCDay();
+                if (day === 0 || day === 6) weekend += t.rr;
+                else weekday += t.rr;
+
+                if (t.direction === "LONG") longProfit += t.rr;
+                if (t.direction === "SHORT") shortProfit += t.rr;
             });
 
             let bestSession = Object.keys(sessionProfit)
@@ -361,24 +406,74 @@
             let worstSession = Object.keys(sessionProfit)
                 .reduce((a, b) => sessionProfit[a] < sessionProfit[b] ? a : b);
 
-            let weekend = 0, weekday = 0;
-            trades.forEach(t => {
-                let day = new Date(t.time).getUTCDay();
-                if (day === 0 || day === 6) weekend += t.rr;
-                else weekday += t.rr;
-            });
-
-            let longProfit = trades.filter(t => t.direction === "LONG")
-                .reduce((a, b) => a + b.rr, 0);
-            let shortProfit = trades.filter(t => t.direction === "SHORT")
-                .reduce((a, b) => a + b.rr, 0);
-
             let bestDirection = longProfit > shortProfit ? "LONG" : "SHORT";
 
+
+            /* =========================
+               1:1 MODEL
+            ========================== */
+
+            let modelEquity = 0;
+            let modelPeak = 0;
+            let modelMaxDD = 0;
+            let modelStreak = 0;
+            let modelMaxStreak = 0;
+
+            let modelWins = 0;
+
+            let modelSessionProfit = {};
+            let modelWeekend = 0, modelWeekday = 0;
+            let modelLongProfit = 0, modelShortProfit = 0;
+
+            trades.forEach(t => {
+
+                let modelRR = (t.rr < 0) ? -1 : 1;
+
+                if (modelRR > 0) modelWins++;
+
+                modelEquity += modelRR;
+
+                if (modelEquity > modelPeak) modelPeak = modelEquity;
+                let dd = modelPeak - modelEquity;
+                if (dd > modelMaxDD) modelMaxDD = dd;
+
+                if (modelRR < 0) {
+                    modelStreak++;
+                    if (modelStreak > modelMaxStreak) modelMaxStreak = modelStreak;
+                } else modelStreak = 0;
+
+                if (!modelSessionProfit[t.session]) modelSessionProfit[t.session] = 0;
+                modelSessionProfit[t.session] += modelRR;
+
+                let day = new Date(t.time).getUTCDay();
+                if (day === 0 || day === 6) modelWeekend += modelRR;
+                else modelWeekday += modelRR;
+
+                if (t.direction === "LONG") modelLongProfit += modelRR;
+                if (t.direction === "SHORT") modelShortProfit += modelRR;
+            });
+
+            let modelWinRate = (modelWins / total) * 100;
+
+            let modelBestSession = Object.keys(modelSessionProfit)
+                .reduce((a, b) => modelSessionProfit[a] > modelSessionProfit[b] ? a : b);
+
+            let modelWorstSession = Object.keys(modelSessionProfit)
+                .reduce((a, b) => modelSessionProfit[a] < modelSessionProfit[b] ? a : b);
+
+            let modelBestDirection = modelLongProfit > modelShortProfit ? "LONG" : "SHORT";
+
+
+            /* =========================
+               DISPLAY
+            ========================== */
+
             document.getElementById("stats").innerHTML = `
+
+<div class="section-title section-original">ORIGINAL STRATEGY</div>
+
 <div class="stat-box">Total Trades<br><b>${total}</b></div>
 <div class="stat-box">Win Rate<br><b>${winRate.toFixed(1)}%</b></div>
-<div class="stat-box">1:1 Win Rate<br><b>${modelWinRate.toFixed(1)}%</b></div>
 <div class="stat-box">Average RR<br><b>${avgRR.toFixed(2)}</b></div>
 <div class="stat-box">Profit Factor<br><b>${profitFactor.toFixed(2)}</b></div>
 <div class="stat-box">Max Drawdown<br><b>${maxDD.toFixed(2)}</b></div>
@@ -388,11 +483,23 @@
 <div class="stat-box">Weekend PnL<br><b>${weekend.toFixed(2)}</b></div>
 <div class="stat-box">Weekday PnL<br><b>${weekday.toFixed(2)}</b></div>
 <div class="stat-box">Most Profitable Direction<br><b>${bestDirection}</b></div>
+
+<div class="section-title section-model">1:1 MODEL</div>
+
+<div class="stat-box">Win Rate<br><b>${modelWinRate.toFixed(1)}%</b></div>
+<div class="stat-box">Max Drawdown<br><b>${modelMaxDD.toFixed(2)}</b></div>
+<div class="stat-box">Longest Losing Streak<br><b>${modelMaxStreak}</b></div>
+<div class="stat-box">Best Session<br><b>${modelBestSession}</b></div>
+<div class="stat-box">Worst Session<br><b>${modelWorstSession}</b></div>
+<div class="stat-box">Weekend PnL<br><b>${modelWeekend.toFixed(2)}</b></div>
+<div class="stat-box">Weekday PnL<br><b>${modelWeekday.toFixed(2)}</b></div>
+<div class="stat-box">Most Profitable Direction<br><b>${modelBestDirection}</b></div>
 `;
         }
 
         render();
     </script>
+
 
 
 </body>
