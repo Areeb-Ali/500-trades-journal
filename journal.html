@@ -463,6 +463,15 @@
 
             let modelBestDirection = modelLongProfit > modelShortProfit ? "LONG" : "SHORT";
 
+            // Ensure all sessions exist
+            const sessions = ["Asia", "London", "London/NY Overlap", "New York"];
+
+            sessions.forEach(s => {
+                if (!sessionProfit[s]) sessionProfit[s] = 0;
+                if (!modelSessionProfit[s]) modelSessionProfit[s] = 0;
+            });
+
+
 
             /* =========================
                DISPLAY
@@ -478,19 +487,48 @@
 <div class="stat-box">Profit Factor<br><b>${profitFactor.toFixed(2)}</b></div>
 <div class="stat-box">Max Drawdown<br><b>${maxDD.toFixed(2)}</b></div>
 <div class="stat-box">Longest Losing Streak<br><b>${maxStreak}</b></div>
-<div class="stat-box">Best Session<br><b>${bestSession}</b></div>
-<div class="stat-box">Worst Session<br><b>${worstSession}</b></div>
+
+<div class="stat-box">
+Best Session<br>
+<b>${bestSession} (${sessionProfit[bestSession].toFixed(2)}R)</b>
+</div>
+
+<div class="stat-box">
+Worst Session<br>
+<b>${worstSession} (${sessionProfit[worstSession].toFixed(2)}R)</b>
+</div>
+
+<div class="stat-box">Asia<br><b>${sessionProfit["Asia"].toFixed(2)}R</b></div>
+<div class="stat-box">London<br><b>${sessionProfit["London"].toFixed(2)}R</b></div>
+<div class="stat-box">London/NY<br><b>${sessionProfit["London/NY Overlap"].toFixed(2)}R</b></div>
+<div class="stat-box">New York<br><b>${sessionProfit["New York"].toFixed(2)}R</b></div>
+
 <div class="stat-box">Weekend PnL<br><b>${weekend.toFixed(2)}</b></div>
 <div class="stat-box">Weekday PnL<br><b>${weekday.toFixed(2)}</b></div>
 <div class="stat-box">Most Profitable Direction<br><b>${bestDirection}</b></div>
+
 
 <div class="section-title section-model">1:1 MODEL</div>
 
 <div class="stat-box">Win Rate<br><b>${modelWinRate.toFixed(1)}%</b></div>
 <div class="stat-box">Max Drawdown<br><b>${modelMaxDD.toFixed(2)}</b></div>
 <div class="stat-box">Longest Losing Streak<br><b>${modelMaxStreak}</b></div>
-<div class="stat-box">Best Session<br><b>${modelBestSession}</b></div>
-<div class="stat-box">Worst Session<br><b>${modelWorstSession}</b></div>
+
+<div class="stat-box">
+Best Session<br>
+<b>${modelBestSession} (${modelSessionProfit[modelBestSession].toFixed(2)}R)</b>
+</div>
+
+<div class="stat-box">
+Worst Session<br>
+<b>${modelWorstSession} (${modelSessionProfit[modelWorstSession].toFixed(2)}R)</b>
+</div>
+
+<div class="stat-box">Asia<br><b>${modelSessionProfit["Asia"].toFixed(2)}R</b></div>
+<div class="stat-box">London<br><b>${modelSessionProfit["London"].toFixed(2)}R</b></div>
+<div class="stat-box">London/NY<br><b>${modelSessionProfit["London/NY Overlap"].toFixed(2)}R</b></div>
+<div class="stat-box">New York<br><b>${modelSessionProfit["New York"].toFixed(2)}R</b></div>
+
 <div class="stat-box">Weekend PnL<br><b>${modelWeekend.toFixed(2)}</b></div>
 <div class="stat-box">Weekday PnL<br><b>${modelWeekday.toFixed(2)}</b></div>
 <div class="stat-box">Most Profitable Direction<br><b>${modelBestDirection}</b></div>
