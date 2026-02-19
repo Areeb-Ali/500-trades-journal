@@ -375,6 +375,11 @@
             let wins = trades.filter(t => t.rr > 0);
             let losses = trades.filter(t => t.rr < 0);
 
+            let avgWinRR = wins.length
+                ? wins.reduce((a, b) => a + b.rr, 0) / wins.length
+                : 0;
+
+
             let winRate = (wins.length / total) * 100;
             let avgRR = trades.reduce((a, b) => a + b.rr, 0) / total;
 
@@ -483,7 +488,7 @@
 
 <div class="stat-box">Total Trades<br><b>${total}</b></div>
 <div class="stat-box">Win Rate<br><b>${winRate.toFixed(1)}%</b></div>
-<div class="stat-box">Average RR<br><b>${avgRR.toFixed(2)}</b></div>
+<div class="stat-box">Avg Winning RR<br><b>${avgWinRR.toFixed(2)}</b></div>
 <div class="stat-box">Profit Factor<br><b>${profitFactor.toFixed(2)}</b></div>
 <div class="stat-box">Max Drawdown<br><b>${maxDD.toFixed(2)}</b></div>
 <div class="stat-box">Longest Losing Streak<br><b>${maxStreak}</b></div>
