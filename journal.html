@@ -174,6 +174,9 @@
             <input id="autoSession" placeholder="Session Auto-Detected" disabled>
 
             <button onclick="addTrade()">Save Trade</button>
+            <button onclick="clearAllTrades()" class="delete-btn">
+                Clear All Trades
+            </button>
         </div>
 
         <div class="main">
@@ -294,6 +297,18 @@
             document.getElementById("autoSession").value = "";
         }
 
+        function clearAllTrades() {
+            if (confirm("Are you sure? This will delete ALL trades permanently.")) {
+
+                trades = [];                // Empty array
+                localStorage.removeItem("trades"); // Clear storage
+
+                render(); // Re-render UI
+
+                alert("All trades removed successfully.");
+            }
+        }
+
         function render() {
 
             const table = document.getElementById("tradeTable");
@@ -372,6 +387,17 @@
                ORIGINAL STRATEGY
             ========================== */
 
+            // Trailing logic based hits
+            let hit1R = trades.filter(t => t.rr >= 0).length;
+            let hit2R = trades.filter(t => t.rr >= 1).length;
+            let hit3R = trades.filter(t => t.rr >= 2).length;
+            let hit4R = trades.filter(t => t.rr >= 3).length;
+
+            let hit1RRate = (hit1R / total) * 100;
+            let hit2RRate = (hit2R / total) * 100;
+            let hit3RRate = (hit3R / total) * 100;
+            let hit4RRate = (hit4R / total) * 100;
+
             let wins = trades.filter(t => t.rr > 0);
             let losses = trades.filter(t => t.rr < 0);
 
@@ -392,10 +418,17 @@
             let weekend = 0, weekday = 0;
             let longProfit = 0, shortProfit = 0;
 
+            let sessionCount = {};
+            let modelSessionCount = {};
+
             trades.forEach(t => {
 
                 if (!sessionProfit[t.session]) sessionProfit[t.session] = 0;
                 sessionProfit[t.session] += t.rr;
+
+                // Original trade count per session
+                if (!sessionCount[t.session]) sessionCount[t.session] = 0;
+                sessionCount[t.session]++;
 
                 let day = new Date(t.time).getUTCDay();
                 if (day === 0 || day === 6) weekend += t.rr;
@@ -450,6 +483,10 @@
                 if (!modelSessionProfit[t.session]) modelSessionProfit[t.session] = 0;
                 modelSessionProfit[t.session] += modelRR;
 
+                // 1:1 trade count per session
+                if (!modelSessionCount[t.session]) modelSessionCount[t.session] = 0;
+                modelSessionCount[t.session]++;
+
                 let day = new Date(t.time).getUTCDay();
                 if (day === 0 || day === 6) modelWeekend += modelRR;
                 else modelWeekday += modelRR;
@@ -474,8 +511,9 @@
             sessions.forEach(s => {
                 if (!sessionProfit[s]) sessionProfit[s] = 0;
                 if (!modelSessionProfit[s]) modelSessionProfit[s] = 0;
+                if (!sessionCount[s]) sessionCount[s] = 0;
+                if (!modelSessionCount[s]) modelSessionCount[s] = 0;
             });
-
 
 
             /* =========================
@@ -485,7 +523,25 @@
             document.getElementById("stats").innerHTML = `
 
 <div class="section-title section-original">ORIGINAL STRATEGY</div>
+<div class="stat-box">
+Hit 1R<br>
+<b>${hit1R} (${hit1RRate.toFixed(1)}%)</b>
+</div>
 
+<div class="stat-box">
+Hit 2R<br>
+<b>${hit2R} (${hit2RRate.toFixed(1)}%)</b>
+</div>
+
+<div class="stat-box">
+Hit 3R<br>
+<b>${hit3R} (${hit3RRate.toFixed(1)}%)</b>
+</div>
+
+<div class="stat-box">
+Hit 4R<br>
+<b>${hit4R} (${hit4RRate.toFixed(1)}%)</b>
+</div>
 <div class="stat-box">Total Trades<br><b>${total}</b></div>
 <div class="stat-box">Win Rate<br><b>${winRate.toFixed(1)}%</b></div>
 <div class="stat-box">Avg Winning RR<br><b>${avgWinRR.toFixed(2)}</b></div>
@@ -503,10 +559,26 @@ Worst Session<br>
 <b>${worstSession} (${sessionProfit[worstSession].toFixed(2)}R)</b>
 </div>
 
-<div class="stat-box">Asia<br><b>${sessionProfit["Asia"].toFixed(2)}R</b></div>
-<div class="stat-box">London<br><b>${sessionProfit["London"].toFixed(2)}R</b></div>
-<div class="stat-box">London/NY<br><b>${sessionProfit["London/NY Overlap"].toFixed(2)}R</b></div>
-<div class="stat-box">New York<br><b>${sessionProfit["New York"].toFixed(2)}R</b></div>
+<div class="stat-box">
+Asia<br>
+<b>${sessionProfit["Asia"].toFixed(2)}R</b><br>
+<small>${sessionCount["Asia"]} trades</small>
+</div>
+<div class="stat-box">
+London<br>
+<b>${sessionProfit["London"].toFixed(2)}R</b><br>
+<small>${sessionCount["London"]} trades</small>
+</div>
+<div class="stat-box">
+London/NY<br>
+<b>${sessionProfit["London/NY Overlap"].toFixed(2)}R</b><br>
+<small>${sessionCount["London/NY Overlap"]} trades</small>
+</div>
+<div class="stat-box">
+New York<br>
+<b>${sessionProfit["New York"].toFixed(2)}R</b><br>
+<small>${sessionCount["New York"]} trades</small>
+</div>
 
 <div class="stat-box">Weekend PnL<br><b>${weekend.toFixed(2)}</b></div>
 <div class="stat-box">Weekday PnL<br><b>${weekday.toFixed(2)}</b></div>
@@ -529,10 +601,26 @@ Worst Session<br>
 <b>${modelWorstSession} (${modelSessionProfit[modelWorstSession].toFixed(2)}R)</b>
 </div>
 
-<div class="stat-box">Asia<br><b>${modelSessionProfit["Asia"].toFixed(2)}R</b></div>
-<div class="stat-box">London<br><b>${modelSessionProfit["London"].toFixed(2)}R</b></div>
-<div class="stat-box">London/NY<br><b>${modelSessionProfit["London/NY Overlap"].toFixed(2)}R</b></div>
-<div class="stat-box">New York<br><b>${modelSessionProfit["New York"].toFixed(2)}R</b></div>
+<div class="stat-box">
+Asia<br>
+<b>${modelSessionProfit["Asia"].toFixed(2)}R</b><br>
+<small>${modelSessionCount["Asia"]} trades</small>
+</div>
+<div class="stat-box">
+London<br>
+<b>${modelSessionProfit["London"].toFixed(2)}R</b><br>
+<small>${modelSessionCount["London"]} trades</small>
+</div>
+<div class="stat-box">
+London/NY<br>
+<b>${modelSessionProfit["London/NY Overlap"].toFixed(2)}R</b><br>
+<small>${modelSessionCount["London/NY Overlap"]} trades</small>
+</div>
+<div class="stat-box">
+New York<br>
+<b>${modelSessionProfit["New York"].toFixed(2)}R</b><br>
+<small>${modelSessionCount["New York"]} trades</small>
+</div>
 
 <div class="stat-box">Weekend PnL<br><b>${modelWeekend.toFixed(2)}</b></div>
 <div class="stat-box">Weekday PnL<br><b>${modelWeekday.toFixed(2)}</b></div>
